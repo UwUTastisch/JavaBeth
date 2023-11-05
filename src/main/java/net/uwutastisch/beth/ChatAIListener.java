@@ -1,4 +1,4 @@
-package org.example;
+package net.uwutastisch.beth;
 
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.TextChannel;
