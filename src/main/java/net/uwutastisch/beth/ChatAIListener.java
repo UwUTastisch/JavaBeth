@@ -80,10 +80,20 @@ public class ChatAIListener extends ListenerAdapter {
                 if(s.length() <= 2000) {
                     messageAction.tts(true).append(s).queue();
                 } else {
-                    for (int i = 0; i < s.length(); i += 2000) {
-                        messageAction.tts(true).append(s.substring(i,i+2000)).queue();
+                    String substring = s.substring(0, 1800);
+                    messageAction.tts(true).append(substring).queue();
+                    for (int i = 1800; i < s.length(); i += 1800) {
+                        substring = s.substring(i, Math.min(i + 1800, s.length()));
+                        System.out.println("length " + substring.length());
+
+                        channel.sendMessage(substring).tts(true).queue();
+                        //try {
+                        //    TimeUnit.MILLISECONDS.sleep(500);
+                        //} catch (InterruptedException e) {
+                        //    throw new RuntimeException(e);
+                        //}
                     }
-                    messageAction.tts(true).append(s.substring(2000*(s.length()/2000))).queue();
+                    //messageAction.tts(true).append(s.substring(1800*(s.length()/1800))).queue();
                 }
             }).orTimeout(120, TimeUnit.SECONDS).exceptionally(throwable -> {
                 System.out.println(throwable + "");
