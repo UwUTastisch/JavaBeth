@@ -7,6 +7,8 @@ import net.dv8tion.jda.api.entities.Activity;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.utils.cache.CacheFlag;
 import org.apache.commons.lang.StringEscapeUtils;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 import javax.security.auth.login.LoginException;
 import java.io.BufferedReader;
@@ -54,7 +56,7 @@ public class Main {
         });
     }
 
-    public static String chatGPT(String context) {
+    public static String chatGPT(JSONArray context) {
         String url = "https://api.openai.com/v1/chat/completions";
         String apiKey = dotenv.get("OpenAIToken");
         String model = "gpt-3.5-turbo";
@@ -67,11 +69,15 @@ public class Main {
             connection.setRequestProperty("Content-Type", "application/json");
 
             // The request body
-            String body = "{\"model\": \"" + model + "\", " + context + " }";
-            System.out.println(body);
+            JSONObject jsonObject = new JSONObject();
+            jsonObject.put("model", model);
+            jsonObject.put("messages", context);
+            //String body = "{\"model\": \"" + model + "\", " + context + " }";
+            String jsonString = jsonObject.toString();
+            System.out.println(jsonString);
             connection.setDoOutput(true);
             OutputStreamWriter writer = new OutputStreamWriter(connection.getOutputStream());
-            writer.write(body);
+            writer.write(jsonString);
             writer.flush();
             writer.close();
             //System.out.println("qwq");
@@ -79,7 +85,7 @@ public class Main {
             int responseCode = connection.getResponseCode();
             if(responseCode != 200) {
                 System.out.println("Oh no UwU: "+ responseCode);
-                throw new RuntimeException("Error Respond: " + responseCode);
+                throw new RuntimeException();
             }
             // Response from ChatGPT
             BufferedReader br = new BufferedReader(new InputStreamReader(connection.getInputStream()));
@@ -94,8 +100,16 @@ public class Main {
             br.close();
 
             // calls the method to extract the message.
-            return extractMessageFromJSONResponse(response.toString());
-
+            //return extractMessageFromJSONResponse(response.toString());
+            String string = response.toString();
+            System.out.println(string);
+            JSONObject jsonResponse = new JSONObject(string);
+            //System.out.println(messages);
+            //System.out.println(string1);
+            return jsonResponse.getJSONArray("choices")
+                    .getJSONObject(0)
+                    .getJSONObject("message")
+                    .getString("content");
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
