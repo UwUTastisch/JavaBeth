@@ -8,6 +8,7 @@ import net.dv8tion.jda.api.requests.restaction.MessageAction;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -53,12 +54,12 @@ public class ChatAIListener extends ListenerAdapter {
             Message m = messages.get(j);
             System.out.println(m);
             long UID = m.getAuthor().getIdLong();
-            String c = m.getContentDisplay();
+            String c = m.getContentRaw();
             if(UID == id) {
                 context.put(new JSONObject().put("role", "assistant").put("content",c.substring(c.indexOf(suffix) + suffix.length()))); //", {\"role\": \"assistant\", \"content\": \"").append(c.substring(c.indexOf(suffix) + suffix.length())).append("\"}");
             } else {
                 System.out.println("UwU -> " + c);
-                context.put(new JSONObject().put("role", "user").put("content",c));//context.append(", {\"role\": \"user\", \"content\": \"" + c + "\"}");
+                context.put(new JSONObject().put("role", "user").put("content","MessageFormat{tag=\"<@" + m.getAuthor().getIdLong() + ">\","+ "username=\"" + m.getAuthor().getName() + "\", content=" + c +">"));//context.append(", {\"role\": \"user\", \"content\": \"" + c + "\"}");
             }
         }
 
@@ -73,9 +74,19 @@ public class ChatAIListener extends ListenerAdapter {
         CompletableFuture.runAsync(()-> {
             CompletableFuture<Void> voidCompletableFuture = CompletableFuture.runAsync(() -> {
                 //channel.sendMessage("render message").queue()a;
-                MessageAction messageAction = channel.sendMessage("<Modell: " + llmType + suffix);
 
-                String s = Main.chatGPT(context);
+                //String s = Main.chatGPT(context);
+                String s;
+                int tokens;
+                try {
+                    JSONObject jsonObject = Main.requestOpenAI(context, "gpt-3.5-turbo");
+                    s = Main.getGptMessageContent(jsonObject);
+                    tokens = jsonObject.getJSONObject("usage").getInt("total_tokens");
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+                MessageAction messageAction = channel.sendMessage("<Model= " + llmType +", " + " Tokens=" + tokens + "/"  + 4000 + suffix);
+
                 System.out.println(s);
                 if(s.length() <= 2000) {
                     messageAction.tts(true).append(s).queue();

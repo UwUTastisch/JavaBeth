@@ -4,9 +4,9 @@ import io.github.cdimascio.dotenv.Dotenv;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.entities.Activity;
-import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.utils.cache.CacheFlag;
 import org.apache.commons.lang.StringEscapeUtils;
+import org.jetbrains.annotations.NotNull;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -17,8 +17,6 @@ import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 public class Main {
 
@@ -37,12 +35,13 @@ public class Main {
         // Enable the bulk delete event
         //builder.setBulkDeleteSplittingEnabled(false);
         // Set activity (like "playing Something")
-        builder.setActivity(Activity.watching("TV"));
+        builder.setActivity(Activity.of(Activity.ActivityType.LISTENING,"Version: alpha"));
         jda = builder.build();
 
         jda.awaitReady(); //TimeUnit.SECONDS.sleep(1);
 
         System.out.println("Seems " + jda.getStatus() + " UWU");
+        /*
         CompletableFuture.runAsync(() -> {
             List<TextChannel> textChannels = jda.getTextChannels();
             //System.out.println(textChannels);
@@ -54,65 +53,77 @@ public class Main {
             }
             System.out.println("Greetings done!");
         });
+
+         */
     }
 
     public static String chatGPT(JSONArray context) {
-        String url = "https://api.openai.com/v1/chat/completions";
-        String apiKey = dotenv.get("OpenAIToken");
         String model = "gpt-3.5-turbo";
-
         try {
-            URL obj = new URL(url);
-            HttpURLConnection connection = (HttpURLConnection) obj.openConnection();
-            connection.setRequestMethod("POST");
-            connection.setRequestProperty("Authorization", "Bearer " + apiKey);
-            connection.setRequestProperty("Content-Type", "application/json");
-
-            // The request body
-            JSONObject jsonObject = new JSONObject();
-            jsonObject.put("model", model);
-            jsonObject.put("messages", context);
-            //String body = "{\"model\": \"" + model + "\", " + context + " }";
-            String jsonString = jsonObject.toString();
-            System.out.println(jsonString);
-            connection.setDoOutput(true);
-            OutputStreamWriter writer = new OutputStreamWriter(connection.getOutputStream());
-            writer.write(jsonString);
-            writer.flush();
-            writer.close();
-            //System.out.println("qwq");
-            //System.out.println("Respond " + connection.getResponseCode());
-            int responseCode = connection.getResponseCode();
-            if(responseCode != 200) {
-                System.out.println("Oh no UwU: "+ responseCode);
-                throw new RuntimeException();
-            }
-            // Response from ChatGPT
-            BufferedReader br = new BufferedReader(new InputStreamReader(connection.getInputStream()));
-            //System.out.println("QwQ idkkkkk");
-            String line;
-            StringBuffer response = new StringBuffer();
-
-            while ((line = br.readLine()) != null) {
-                response.append(line);
-                //System.out.println(line);
-            }
-            br.close();
-
-            // calls the method to extract the message.
-            //return extractMessageFromJSONResponse(response.toString());
-            String string = response.toString();
-            System.out.println(string);
-            JSONObject jsonResponse = new JSONObject(string);
+            JSONObject jsonResponse = requestOpenAI(context, model);
             //System.out.println(messages);
             //System.out.println(string1);
-            return jsonResponse.getJSONArray("choices")
-                    .getJSONObject(0)
-                    .getJSONObject("message")
-                    .getString("content");
+            return getGptMessageContent(jsonResponse);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    @NotNull
+    public static JSONObject requestOpenAI(JSONArray context, String model) throws IOException {
+        String url = "https://api.openai.com/v1/chat/completions";
+        String apiKey = dotenv.get("OpenAIToken");
+
+        URL obj = new URL(url);
+        HttpURLConnection connection = (HttpURLConnection) obj.openConnection();
+        connection.setRequestMethod("POST");
+        connection.setRequestProperty("Authorization", "Bearer " + apiKey);
+        connection.setRequestProperty("Content-Type", "application/json");
+
+        // The request body
+        JSONObject jsonObject = new JSONObject();
+        jsonObject.put("model", model);
+        jsonObject.put("messages", context);
+        //String body = "{\"model\": \"" + model + "\", " + context + " }";
+        String jsonString = jsonObject.toString();
+        System.out.println(jsonString);
+        connection.setDoOutput(true);
+        OutputStreamWriter writer = new OutputStreamWriter(connection.getOutputStream());
+        writer.write(jsonString);
+        writer.flush();
+        writer.close();
+        //System.out.println("qwq");
+        //System.out.println("Respond " + connection.getResponseCode());
+        int responseCode = connection.getResponseCode();
+        if(responseCode != 200) {
+            System.out.println("Oh no UwU: "+ responseCode);
+            throw new RuntimeException();
+        }
+        // Response from ChatGPT
+        BufferedReader br = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+        //System.out.println("QwQ idkkkkk");
+        String line;
+        StringBuffer response = new StringBuffer();
+
+        while ((line = br.readLine()) != null) {
+            response.append(line);
+            //System.out.println(line);
+        }
+        br.close();
+
+        // calls the method to extract the message.
+        //return extractMessageFromJSONResponse(response.toString());
+        String string = response.toString();
+        System.out.println(string);
+        JSONObject jsonResponse = new JSONObject(string);
+        return jsonResponse;
+    }
+
+    public static String getGptMessageContent(JSONObject gptResponse) {
+        return gptResponse.getJSONArray("choices")
+                .getJSONObject(0)
+                .getJSONObject("message")
+                .getString("content");
     }
 
     public static String extractMessageFromJSONResponse(String response) {
