@@ -2,6 +2,7 @@ package net.uwutastisch.beth;
 
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.TextChannel;
+import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.requests.restaction.MessageAction;
@@ -42,12 +43,12 @@ public class ChatAIListener extends ListenerAdapter {
         //for (; i >= 0; i--) {
         //    if(messages.get(i).getContentRaw().equals(ConfigUtil.startMessage)) break;
         //}
-        do {
+        while (!messages.get(i).getContentRaw().equals(ConfigUtil.startMessage) &&  size > (i+=1)) {
             System.out.println(/*"A" + ConfigUtil.startMessage + "\nB" +*/ messages.get(i).getContentRaw() + " | " + messages.get(i).getTimeCreated());
-        } while (!messages.get(i).getContentRaw().equals(ConfigUtil.startMessage) && i++ < size);
+        }
         //System.out.println(messages);
         JSONArray context = new JSONArray();
-        context.put(new JSONObject().put("role", "system").put("content", ConfigUtil.getSystemPrompt(channel)));
+        context.put(new JSONObject().put("role", "system").put("content", /*"To tag user: @<userid> "+*/  ConfigUtil.getSystemPrompt(channel)));
         //new StringBuilder("\"messages\": [").append("{\"role\": \"system\", \"content\": ").append(ConfigUtil.getSystemPrompt(channel)).append("}");
         //System.out.println(i + " messages as Context " + size + " total messages");
         for (int j = i -1; j >= 0; j--) {
@@ -59,7 +60,17 @@ public class ChatAIListener extends ListenerAdapter {
                 context.put(new JSONObject().put("role", "assistant").put("content",c.substring(c.indexOf(suffix) + suffix.length()))); //", {\"role\": \"assistant\", \"content\": \"").append(c.substring(c.indexOf(suffix) + suffix.length())).append("\"}");
             } else {
                 System.out.println("UwU -> " + c);
-                context.put(new JSONObject().put("role", "user").put("content","MessageFormat{tag=\"<@" + m.getAuthor().getIdLong() + ">\","+ "username=\"" + m.getAuthor().getName() + "\", content=" + c +">"));//context.append(", {\"role\": \"user\", \"content\": \"" + c + "\"}");
+                User author = m.getAuthor();
+                author.getIdLong();
+                //Member member = event.getMember();
+                //long idLong = m.getIdLong();
+                //Member member = ((TextChannel) event.getChannel()).getMembers().stream().filter(mb -> mb.getIdLong() == idLong).findFirst().get();
+                //if(member == null){
+                //    System.out.println("RIP something went wrong");
+                //    return;
+                //}
+                //String nick = member.getNickname();
+                context.put(new JSONObject().put("role", "user").put("content","MessageFormat={user={tagMentionFormat=\"<@" + m.getAuthor().getIdLong() + ">\", name=\"" + /*((nick != null) ? nick :*/ m.getAuthor().getName()/*)*/  + "}\", content=\n" + c +"\n}"));//context.append(", {\"role\": \"user\", \"content\": \"" + c + "\"}");
             }
         }
 

@@ -41,20 +41,25 @@ public class Main {
         jda.awaitReady(); //TimeUnit.SECONDS.sleep(1);
 
         System.out.println("Seems " + jda.getStatus() + " UWU");
-        /*
-        CompletableFuture.runAsync(() -> {
+
+        /*CompletableFuture.runAsync(() -> {
+            System.out.println("Hmmm :P");
             List<TextChannel> textChannels = jda.getTextChannels();
-            //System.out.println(textChannels);
+            System.out.println(textChannels);
             for (TextChannel textChannel : textChannels) {
                 //System.out.println(textChannel.canTalk() + " und " + textChannel.getTopic().toLowerCase().startsWith("beth=") );
+                try {
+
+
                 if(!ConfigUtil.isLLMChat(textChannel)) continue;
                 //textChannel.sendMessage("Hewo i am online Again").queue();
                 textChannel.sendMessage(ConfigUtil.startMessage).queue();
+                } catch (Exception ignored) {}
             }
             System.out.println("Greetings done!");
-        });
+        });*/
 
-         */
+
     }
 
     public static String chatGPT(JSONArray context) {
