@@ -13,6 +13,8 @@ import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 
 public class ChatAIListener extends ListenerAdapter {
@@ -87,28 +89,69 @@ public class ChatAIListener extends ListenerAdapter {
                 //channel.sendMessage("render message").queue()a;
 
                 //String s = Main.chatGPT(context);
-                String s;
+                String response;
                 int tokens;
                 try {
                     JSONObject jsonObject = Main.requestOpenAI(context, "gpt-3.5-turbo");
-                    s = Main.getGptMessageContent(jsonObject);
+                    response = Main.getGptMessageContent(jsonObject);
                     tokens = jsonObject.getJSONObject("usage").getInt("total_tokens");
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
                 MessageAction messageAction = channel.sendMessage("<Model= " + llmType +", " + " Tokens=" + tokens + "/"  + 4000 + suffix);
 
-                System.out.println(s);
-                if(s.length() <= 2000) {
-                    messageAction.tts(true).append(s).queue();
+
+                System.out.println(response);
+                //TODO Refactor for better Testing and implementing
+
+
+                Pattern titlePattern = Pattern.compile("Image Title:\\n```\\n(.*?)\\n```", Pattern.DOTALL);
+                Matcher titleMatcher = titlePattern.matcher(response);
+
+                // Regex pattern to match the Positive Prompt
+                Pattern positivePattern = Pattern.compile("Positive Prompt:\\n```\\n(.*?)\\n```", Pattern.DOTALL);
+                Matcher positiveMatcher = positivePattern.matcher(response);
+
+                // Regex pattern to match the Negative Prompt
+                Pattern negativePattern = Pattern.compile("Negative Prompt:\\n```\\n(.*?)\\n```", Pattern.DOTALL);
+                Matcher negativeMatcher = negativePattern.matcher(response);
+
+                String imageTitle;
+                String positivePrompt;
+                String negativePrompt;
+
+                if (titleMatcher.find()) {
+                    imageTitle = titleMatcher.group(1);
+                    System.out.println("Image Title: " + imageTitle);
                 } else {
-                    String substring = s.substring(0, 1800);
+                    imageTitle = null;
+                }
+
+                if (positiveMatcher.find()) {
+                    positivePrompt = positiveMatcher.group(1);
+                    System.out.println("Positive Prompt: " + positivePrompt);
+                } else {
+                    positivePrompt = null;
+                }
+
+                if (negativeMatcher.find()) {
+                    negativePrompt = negativeMatcher.group(1);
+                    System.out.println("Negative Prompt: " + negativePrompt);
+                } else {
+                    negativePrompt = null;
+                }
+
+
+                if(response.length() <= 2000) {
+                    messageAction.tts(true).append(response);
+                } else {
+                    String substring = response.substring(0, 1800);
                     messageAction.tts(true).append(substring).queue();
-                    for (int i = 1800; i < s.length(); i += 1800) {
-                        substring = s.substring(i, Math.min(i + 1800, s.length()));
+                    for (int i = 1800; i < response.length(); i += 1800) {
+                        substring = response.substring(i, Math.min(i + 1800, response.length()));
                         System.out.println("length " + substring.length());
 
-                        channel.sendMessage(substring).tts(true).queue();
+                        messageAction = channel.sendMessage(substring).tts(true);
                         //try {
                         //    TimeUnit.MILLISECONDS.sleep(500);
                         //} catch (InterruptedException e) {
@@ -117,6 +160,17 @@ public class ChatAIListener extends ListenerAdapter {
                     }
                     //messageAction.tts(true).append(s.substring(1800*(s.length()/1800))).queue();
                 }
+                messageAction.queue(message -> {
+                    if(positivePrompt != null && negativePrompt != null) {
+                        try {
+                            Main.addBase64Image(message,positivePrompt,negativePrompt,imageTitle);
+                        } catch (IOException e) {
+                            System.out.println(e.fillInStackTrace().toString());
+                        }
+                    }
+                });
+
+
             }).orTimeout(120, TimeUnit.SECONDS).exceptionally(throwable -> {
                 System.out.println(throwable + "");
                 return null;

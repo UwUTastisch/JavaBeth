@@ -4,6 +4,8 @@ import io.github.cdimascio.dotenv.Dotenv;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.entities.Activity;
+import net.dv8tion.jda.api.entities.Message;
+import net.dv8tion.jda.api.requests.restaction.MessageAction;
 import net.dv8tion.jda.api.utils.cache.CacheFlag;
 import org.apache.commons.lang.StringEscapeUtils;
 import org.jetbrains.annotations.NotNull;
@@ -11,12 +13,10 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import javax.security.auth.login.LoginException;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
+import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.Base64;
 
 public class Main {
 
@@ -140,4 +140,120 @@ public class Main {
         return response.substring(start, end);
 
     }
+
+    public static void addBase64Image(Message message, String prompt, String negativePrompt, String imageTitle) throws IOException {
+        // Assuming base64Image is the image string without data mime type prefix
+        byte[] imageBytes = Base64.getDecoder().decode(getImageWithPrompt(prompt,negativePrompt));
+
+        boolean folderiscreated = new File("images").mkdirs();
+        // Write the image bytes to a file
+        File file = new File("images/"+ System.currentTimeMillis() + ".png"); // Ensure to use the correct extension
+        try (FileOutputStream fos = new FileOutputStream(file)) {
+            fos.write(imageBytes);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return; // Handle the exception properly
+        }
+
+        MessageAction reply = message.reply(imageTitle);
+        // Send the file
+        reply.addFile(file, "image.png").queue(
+                success -> file.delete(), // Delete the file if the upload is successful
+                failure -> file.delete()  // Delete the file if the upload failed
+        );
+    }
+
+    private static String getImageWithPrompt(String prompt, String negativePrompt) throws IOException {
+        // Define the payload
+        JSONObject payload = createJsonPayload(prompt,negativePrompt);
+
+        // Send the POST request
+        URL url = new URL(dotenv.get("StableDiffusionAPI") + "/sdapi/v1/txt2img");
+        HttpURLConnection con = (HttpURLConnection) url.openConnection();
+        System.out.println(payload);
+        con.setRequestMethod("POST");
+        con.setRequestProperty("Content-Type", "application/json"); //; utf-8
+        con.setRequestProperty("accept", "application/json");
+        con.setDoOutput(true);
+
+        try (OutputStream os = con.getOutputStream()) {
+            byte[] input = payload.toString().getBytes("utf-8");
+            os.write(input, 0, input.length);
+        }
+
+        // Read the response
+        StringBuilder response = new StringBuilder();
+        try (java.io.BufferedReader br = new java.io.BufferedReader(
+                new java.io.InputStreamReader(con.getInputStream(), "utf-8"))) {
+            String responseLine = null;
+            while ((responseLine = br.readLine()) != null) {
+                response.append(responseLine.trim());
+            }
+        }
+
+        // Parse the response
+        JSONObject jsonResponse = new JSONObject(response.toString());
+        String base64Image = jsonResponse.getJSONArray("images").getString(0);
+
+        // Close the connection
+        con.disconnect();
+
+        return base64Image;
+    }
+
+
+    public static JSONObject createJsonPayload(String prompt, String negativePrompt) {
+        return new JSONObject()
+                .put("prompt", prompt)
+                .put("negative_prompt", negativePrompt)
+                .put("styles", new JSONArray())
+                .put("seed", -1)
+                .put("subseed", -1)
+                .put("subseed_strength", 0)
+                .put("seed_resize_from_h", -1)
+                .put("seed_resize_from_w", -1)
+                .put("sampler_name", "Heun")
+                .put("batch_size", 1)
+                .put("n_iter", 1)
+                .put("steps", 30)
+                .put("cfg_scale", 7)
+                .put("width", 512)
+                .put("height", 512)
+                .put("restore_faces", false)
+                .put("tiling", false)
+                .put("do_not_save_samples", false)
+                .put("do_not_save_grid", false)
+                .put("eta", 0)
+                .put("denoising_strength", 0)
+                .put("s_min_uncond", 0)
+                .put("s_churn", 0)
+                .put("s_tmax", 0)
+                .put("s_tmin", 0)
+                .put("s_noise", 0)
+                .put("override_settings", new JSONObject())
+                .put("override_settings_restore_afterwards", true)
+                .put("refiner_checkpoint", "")
+                .put("refiner_switch_at", 0)
+                .put("disable_extra_networks", false)
+                .put("comments", new JSONObject())
+                .put("enable_hr", false)
+                .put("firstphase_width", 0)
+                .put("firstphase_height", 0)
+                .put("hr_scale", 2)
+                .put("hr_upscaler", "")
+                .put("hr_second_pass_steps", 0)
+                .put("hr_resize_x", 0)
+                .put("hr_resize_y", 0)
+                .put("hr_checkpoint_name", "")
+                .put("hr_sampler_name", "")
+                .put("hr_prompt", "")
+                .put("hr_negative_prompt", "")
+                .put("sampler_index", "Euler")
+                .put("script_name", "")
+                .put("script_args", new JSONArray())
+                .put("send_images", true)
+                .put("save_images", true)
+                .put("alwayson_scripts", new JSONObject());
+    }
+
 }
