@@ -18,7 +18,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.Base64;
 
-public class Main {
+public class BethJava {
 
 
     private static JDA jda;
@@ -217,8 +217,8 @@ public class Main {
                 .put("n_iter", 1)
                 .put("steps", 30)
                 .put("cfg_scale", 7)
-                .put("width", 512)
-                .put("height", 512)
+                .put("width", 1280)
+                .put("height", 720)
                 .put("restore_faces", false)
                 .put("tiling", false)
                 .put("do_not_save_samples", false)

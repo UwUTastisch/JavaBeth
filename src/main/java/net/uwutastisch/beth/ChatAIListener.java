@@ -92,8 +92,8 @@ public class ChatAIListener extends ListenerAdapter {
                 String response;
                 int tokens;
                 try {
-                    JSONObject jsonObject = Main.requestOpenAI(context, "gpt-3.5-turbo");
-                    response = Main.getGptMessageContent(jsonObject);
+                    JSONObject jsonObject = BethJava.requestOpenAI(context, "gpt-3.5-turbo");
+                    response = BethJava.getGptMessageContent(jsonObject);
                     tokens = jsonObject.getJSONObject("usage").getInt("total_tokens");
                 } catch (IOException e) {
                     throw new RuntimeException(e);
@@ -163,7 +163,7 @@ public class ChatAIListener extends ListenerAdapter {
                 messageAction.queue(message -> {
                     if(positivePrompt != null && negativePrompt != null) {
                         try {
-                            Main.addBase64Image(message,positivePrompt,negativePrompt,imageTitle);
+                            BethJava.addBase64Image(message,positivePrompt,negativePrompt,imageTitle);
                         } catch (IOException e) {
                             System.out.println(e.fillInStackTrace().toString());
                         }
